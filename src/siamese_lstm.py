@@ -2,21 +2,21 @@
 
 import numpy as np
 from keras.models import Sequential, Model
-from keras.layers import Dense, Dropout, Input, Lambda
+from keras.layers import Dense, Dropout, Input, Lambda, LSTM, merge
+from keras.layers.core import Masking
 from keras.optimizers import RMSprop
 from keras.layers.merge import Dot
-from keras.layers import merge
-from keras.layers import LSTM
 
 
 #using TensorFlow backend
 
-def create_LSTM():
+def create_LSTM(timesteps, features):
     seq = Sequential()
-
+    # add masking layer to ignore empty words in sentence list
+    seq.add(Masking(mask_value=0., input_shape=(timesteps, features)))
     #need to decide on LSTM arguments still, probably most will be default, except maybe activation would be better relu than linear?
 
-    seq.add(LSTM())
+    seq.add(LSTM(32))
     #seq.add(Dense(100))
     #also need to decide whether to add more LSTM layers, dense layers, how many... not sure what the intuition for this is to narrow choices,
     #so that I can then start testing effects on prediction accuracy
