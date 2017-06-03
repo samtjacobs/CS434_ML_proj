@@ -31,6 +31,8 @@ def main():
     model = merge(input=[input_a, input_b], output=cos)#would like to try KL-divergence later
 
     # train
+
+    #compile with mean squared error and use RMSprop (generally good for recurrent networks)
     model.compile(loss='mse', optimizer='RMSprop')
 
     #again the formatting of the data will be important here, and parameters will change, but I'm just looking for something simple to do parameter testing with
