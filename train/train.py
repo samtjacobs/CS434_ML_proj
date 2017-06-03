@@ -16,8 +16,11 @@ def create_base_network():
     seq = Sequential()
     # TODO research best parameters for network
     return seq
+
+
 def main():
     trs, gt = load()
+
 
 if __name__ == "__main__":
     main()

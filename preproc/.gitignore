@@ -1,0 +1,6 @@
+# Ignore csv
+*.csv
+# Ignore numpy files
+*.npy
+# Ignore Binary
+*.bin
