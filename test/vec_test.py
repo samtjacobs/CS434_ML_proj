@@ -1,5 +1,6 @@
 from keras.preprocessing.sequence import pad_sequences
 import numpy as np
+'''Should be ignored'''
 seq1 = np.array([[1,1,1],[2,2,2],[3,3,3]])
 seq2 = np.array([[2,2,2],[3,3,3]])
 seq3 = np.array([[3,3,3]])
