@@ -10,15 +10,15 @@ from keras import backend as K
 
 maxlen = 30
 
-def cosine_distance(vests):
-    x, y = vests
-    x = K.l2_normalize(x, axis=-1)
-    y = K.l2_normalize(y, axis=-1)
-    return -K.mean(x * y, axis=-1, keepdims=True)
 
-def cos_dist_output_shape(shapes):
+def euclidean_distance(vects):
+    x, y = vects
+    return K.sqrt(K.sum(K.square(x - y), axis=1, keepdims=True))
+
+def eucl_dist_output_shape(shapes):
     shape1, shape2 = shapes
-    return (shape1[0],1)
+    return (shape1[0], 1)
+
 
 def load_training_data():
     trs = np.load('../preproc/train.npy')
@@ -35,7 +35,7 @@ def create_LSTM(input):
     #need to decide on LSTM arguments still, probably most will be default, except maybe activation would be better relu than linear?
 
     seq.add(LSTM(32, input_shape=input))
-    seq.add(Dense(32))
+    seq.add(Dense(1))
     #also need to decide whether to add more LSTM layers, dense layers, how many... not sure what the intuition for this is to narrow choices,
     #so that I can then start testing effects on prediction accuracy
 
@@ -64,7 +64,7 @@ def main():
 
     question_1 = siamese_LSTM(input_q1)
     question_2 = siamese_LSTM(input_q2)
-    distance = Lambda(cosine_distance, output_shape=cos_dist_output_shape)([question_1, question_2])
+    distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([question_1, question_2])
 
     model = Model(input=[input_q1, input_q2], output=distance)
     #compile with mean squared error and use RMSprop (generally good for recurrent networks)
