@@ -16,18 +16,21 @@ def load_training_data():
     assert len(trs) == len(gt)
     return trs, gt
 
-
-#using TensorFlow backend
+def get_mse(predictions, actuals):
+	mse = 0.0
+	for i in range(len(predictions)):
+		mse += (predictions[i] - actuals[i])**2
+	return mse
+	
 def create_LSTM():
     seq = Sequential()
     # add masking layer to ignore empty words in sentence list
-    #seq.add(Masking(mask_value=0., input_shape=(timesteps, features)))
+    #TODO optional/test as model parameter: add masking e.g.: seq.add(Masking(mask_value=0., input_shape=(timesteps, features)))
     #need to decide on LSTM arguments still, probably most will be default, except maybe activation would be better relu than linear?
 
     seq.add(LSTM(32, input_shape=(maxlen,300)))
     seq.add(Dense(32))
-    #also need to decide whether to add more LSTM layers, dense layers, how many... not sure what the intuition for this is to narrow choices,
-    #so that I can then start testing effects on prediction accuracy
+    #TODO: test additional dense layers as a sort of model parameter
 
     return seq
 
@@ -47,6 +50,7 @@ def main():
     # The word embeddings should now be usable as training data
     q1_word_embeddings = pad_sequences(q1, maxlen=maxlen, dtype='float32',padding='pre', truncating='pre', value=0.)
     q2_word_embeddings = pad_sequences(q2, maxlen=maxlen, dtype='float32',padding='pre', truncating='pre', value=0.)
+
     #create base LSTM models
     sibling_LSTM = create_LSTM()
 
@@ -69,7 +73,12 @@ def main():
               batch_size=100, verbose=2, nb_epoch=10)
 
     # compute final accuracy on training and test sets
-    training_predictions = model.predict(train_data)
-    test_predictions = model.predict(test_data)
+    training_predictions = model.predict(trs)
+
+    #mean-square-error calculation
+    #mse = get_mse(training_predictions, gt)
+
+    #looking into how to use the unlabeled test data (why it's provided)
+    #test_predictions = model.predict(test_data)
 
 main()
