@@ -69,7 +69,7 @@ def main():
     model.compile(loss='mean_squared_error', optimizer='RMSprop')
 
     #again the formatting of the data will be important here, and parameters will change, but I'm just looking for something simple to do parameter testing with
-    model.fit([q1_data, q2_data], labels, validation_split=.20,
+    model.fit([q1_word_embeddings, q2_word_embeddings], gt, validation_split=.20,
               batch_size=100, verbose=2, nb_epoch=10)
 
     # compute final accuracy on training and test sets
