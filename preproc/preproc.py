@@ -10,7 +10,7 @@ model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', 
 def get_words(sentence):
     vec_seq = []
     try:
-        for word in ''.join(c for c in sentence if c not in punctuation and not c.isdigit()).split():
+        for word in ''.join(c for c in sentence if c not in punctuation).split():
 #    for word in sentence:
             if word in model:
                 vec_seq.append(model[word])
