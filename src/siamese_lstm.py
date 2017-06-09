@@ -21,11 +21,17 @@ def cos_dist_output_shape(shapes):
     return (shape1[0],1)
 
 def load_training_data():
-    trs = np.load('../preproc/train.npy')
+    trs = np.load('../preproc/train_tr.npy')
     gt = np.load('../preproc/labels.npy')
-    assert len(trs) == len(gt)
+    gt = gt[:len(trs)]
+    assert(len(gt) == len(trs))
     return trs, gt
 
+def get_mse(predictions, actuals):
+	mse = 0.0
+	for i in range(len(predictions)):
+		mse += (predictions[i] - actuals[i])**2
+	return mse
 
 #using TensorFlow backend
 def create_LSTM(input):
@@ -73,8 +79,10 @@ def main():
     #again the formatting of the data will be important here, and parameters will change, but I'm just looking for something simple to do parameter testing with
     #model.fit([q1_word_embeddings, q2_word_embeddings], gt)
     model.fit([q1_word_embeddings, q2_word_embeddings], gt, validation_split=.20,
-              batch_size=100, verbose=2, nb_epoch=10)
+              batch_size=100, verbose=2, nb_epoch=3)
     model.save('quora_regressor.h5')
     # compute final accuracy on training and test sets
+    #preds = model.predict([input_q1, input_q2], verbose=2)
+    mse = get_mse(gt, preds)
 
 main()

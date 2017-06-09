@@ -1,16 +1,16 @@
-from gensim.models import Word2Vec
+from gensim.models import KeyedVectors
 import pandas as pd
 from string import punctuation
 import sys
 import numpy as np
 # Load pretrained model (since intermediate data is not included, the model cannot be refined with additional data)
-model = Word2Vec.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
+model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
 
 
 def get_words(sentence):
     vec_seq = []
     try:
-        for word in ''.join(c for c in sentence if c not in punctuation and not c.isdigit()).split():
+        for word in ''.join(c for c in sentence if c not in punctuation).split():
 #    for word in sentence:
             if word in model:
                 vec_seq.append(model[word])
