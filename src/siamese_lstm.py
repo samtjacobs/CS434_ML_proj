@@ -83,6 +83,6 @@ def main():
     model.save('quora_regressor.h5')
     # compute final accuracy on training and test sets
     #preds = model.predict([input_q1, input_q2], verbose=2)
-    mse = get_mse(gt, preds)
+    #mse = get_mse(gt, preds)
 
 main()
