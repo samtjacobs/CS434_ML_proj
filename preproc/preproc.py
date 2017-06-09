@@ -1,31 +1,48 @@
-from gensim.models import KeyedVectors
-import pandas as pd
-from string import punctuation
+from keras.preprocessing.text import Tokenizer
+import csv
 import sys
+import os
 import numpy as np
-# Load pretrained model (since intermediate data is not included, the model cannot be refined with additional data)
-model = KeyedVectors.load_word2vec_format('GoogleNews-vectors-negative300.bin', binary=True)
+import cPickle as pickle
+MAX_NB_WORDS = 200000
+
+def get_q_strings(data_path):
+    question1 = []
+    question2 = []
+    with open(data_path) as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=',')
+        for row in reader:
+            question1.append(row['question1'])
+            question2.append(row['question2'])
+    return question1, question2
 
 
-def get_words(sentence):
-    vec_seq = []
-    try:
-        for word in ''.join(c for c in sentence if c not in punctuation and not c.isdigit()).split():
-#    for word in sentence:
-            if word in model:
-                vec_seq.append(model[word])
-    except TypeError:
-        print("saw float in: " + str(sentence))
-    return vec_seq
+def make_tokens(question1, question2):
+    questions = question1 + question2
+    tokenizer = Tokenizer(nb_words=MAX_NB_WORDS)
+    tokenizer.fit_on_texts(questions)
+    return tokenizer
 
 
-data = pd.read_csv(sys.argv[1])
-output = []
-trs = 'train' in sys.argv[1]
-for sentences in zip(data['question1'], data['question2']):
-    nr = [get_words(sentences[0]), get_words(sentences[1])]
-    output.append(nr)
+def get_embeddings(data_path):
+    embeddings_index = {}
+    f = open(data_path)
+    for line in f:
+        values = line.split()
+        word = values[0]
+        coefs = np.asarray(values[1:], dtype='float32')
+        embeddings_index[word] = coefs
+    f.close()
+    return embeddings_index
 
-np.save(sys.argv[1].split('.')[0] + '.npy', np.asarray(output))
-if trs:
-    np.save(sys.argv[1].split('.')[0] + 'labels.npy', np.asarray(data['is_duplicate']))
+
+def main():
+    data_path = sys.argv[1]
+    q1, q2 = get_q_strings(data_path)
+    tokens = make_tokens(q1, q2)
+    pickle.dump(tokens.word_index, open("word_ind.p", "wb"))
+    embed_dic = get_embeddings(sys.argv[2])
+    pickle.dump(embed_dic, open("word_vec.p", "wb"))
+
+if __name__ == "__main__":
+    main()

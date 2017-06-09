@@ -15,23 +15,21 @@ import csv
 maxlen = 30
 MAX_NB_WORDS = 200000
 
-def make_tokens(data_path):
+def get_q_strings(data_path):
     question1 = []
     question2 = []
-    is_duplicate = []
     with open(data_path) as csvfile:
         reader = csv.DictReader(csvfile, delimiter=',')
         for row in reader:
             question1.append(row['question1'])
             question2.append(row['question2'])
+    return question1, question2
 
+
+def make_tokens(question1, question2):
     questions = question1 + question2
     tokenizer = Tokenizer(nb_words=MAX_NB_WORDS)
     tokenizer.fit_on_texts(questions)
-    sequences = tokenizer.texts_to_sequences(questions)
-
-    word_index = tokenizer.word_index
-    print('Found %s unique tokens.' % len(word_index))
     return tokenizer
 
 #using TensorFlow backend
@@ -49,14 +47,12 @@ def create_LSTM(input):
     return seq
 
 def main():
-    my_tok = make_tokens('../train.csv')
-    trs, gt = load_training_data()
-    q1, q2 = np.mean(trs[:,0], axis=0), np.mean(trs[:,1], axis=0)
-
+    question1, question2 = get_q_strings('../train.csv')
+    tokens = make_tokens(question1, question2)
+    # Make tokens of training data
+    # tokens.word_index is a dictionary, given word as key
+    # will return frequency based on index
     # Pre-trained
-    q1_word_embeddings = pad_sequences(q1, maxlen=maxlen, dtype='float32',padding='pre', truncating='pre', value=0.)
-    q2_word_embeddings = pad_sequences(q2, maxlen=maxlen, dtype='float32',padding='pre', truncating='pre', value=0.)
-    #create base LSTM models
     input_q1 = Input(shape=(maxlen,300),dtype='float32',name='q1')
     input_q2 = Input(shape=(maxlen,300),dtype='float32',name='q2')
     siamese_LSTM = create_LSTM((maxlen,300))
