@@ -7,13 +7,19 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 from keras.layers import Dense, Dropout, Input, Lambda, LSTM, merge, Merge
 from keras.optimizers import RMSprop
-from keras.layers.merge import Dot
+from keras.layers import Embedding
 from keras import backend as K
 import pandas as pd
 import csv
+import cPickle as pickle
+import sys
 
 maxlen = 30
 MAX_NB_WORDS = 200000
+PREPROC_PATH = '../preproc'
+DATA = sys.argv[1]
+EMBEDDING_DIM = 300
+MAX_SEQUENCE_LENGTH = 64
 
 def get_q_strings(data_path):
     question1 = []
@@ -32,6 +38,25 @@ def make_tokens(question1, question2):
     tokenizer.fit_on_texts(questions)
     return tokenizer
 
+
+def get_embed_weights(word_ind, embed_ind):
+    embedding_matrix = np.zeros((len(word_ind) + 1, EMBEDDING_DIM))
+    for word, i in word_ind.items():
+        embedding_vector = embed_ind.get(word)
+        if embedding_vector is not None:
+            # words not found in embedding index will be all-zeros.
+            embedding_matrix[i] = embedding_vector
+    return embedding_matrix
+
+
+def make_embed_layer(word_ind, embed_w):
+    return Embedding(len(word_ind) + 1,
+                    EMBEDDING_DIM,
+                    weights=[embed_w],
+                    input_length=MAX_SEQUENCE_LENGTH,
+                    trainable=False)
+
+
 #using TensorFlow backend
 def create_LSTM(input):
     seq = Sequential()
@@ -48,28 +73,17 @@ def create_LSTM(input):
 
 def main():
     question1, question2 = get_q_strings('../train.csv')
-    tokens = make_tokens(question1, question2)
+    word_ind = pickle.load(PREPROC_PATH + 'word_ind.p')
+    embedding_ind = pickle.load(PREPROC_PATH + 'word_vec.p')
     # Make tokens of training data
     # tokens.word_index is a dictionary, given word as key
     # will return frequency based on index
     # Pre-trained
+    embed_w = get_embed_weights(word_ind, embedding_ind)
+
     input_q1 = Input(shape=(maxlen,300),dtype='float32',name='q1')
     input_q2 = Input(shape=(maxlen,300),dtype='float32',name='q2')
     siamese_LSTM = create_LSTM((maxlen,300))
 
-    question_1 = siamese_LSTM(input_q1)
-    question_2 = siamese_LSTM(input_q2)
-    distance = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([question_1, question_2])
-
-    model = Model(input=[input_q1, input_q2], output=distance)
-    #compile with mean squared error and use RMSprop (generally good for recurrent networks)
-    model.compile(loss='mean_squared_error', optimizer='RMSprop')
-
-    #again the formatting of the data will be important here, and parameters will change, but I'm just looking for something simple to do parameter testing with
-    #model.fit([q1_word_embeddings, q2_word_embeddings], gt)
-    model.fit([q1_word_embeddings, q2_word_embeddings], gt, validation_split=.20,
-              batch_size=100, verbose=2, nb_epoch=10)
-    model.save('quora_regressor.h5')
-    # compute final accuracy on training and test sets
-
-main()
+if __name__ == "__main__":
+    main()
