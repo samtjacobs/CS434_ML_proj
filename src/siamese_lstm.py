@@ -82,7 +82,7 @@ def main():
               batch_size=100, verbose=2, nb_epoch=3)
     model.save('quora_regressor.h5')
     # compute final accuracy on training and test sets
-    #preds = model.predict([input_q1, input_q2], verbose=2)
-    #mse = get_mse(gt, preds)
+    preds = model.predict([input_q1, input_q2], batch_size=1, verbose=1)
+    mse = get_mse(gt, preds)
 
 main()
