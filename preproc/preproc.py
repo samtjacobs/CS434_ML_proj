@@ -28,4 +28,4 @@ for sentences in zip(data['question1'], data['question2']):
 
 np.save(sys.argv[1].split('.')[0] + '.npy', np.asarray(output))
 if trs:
-    np.save('labels.npy', np.asarray(data['is_duplicate']))
+    np.save('labels2.npy', np.asarray(data['is_duplicate']))

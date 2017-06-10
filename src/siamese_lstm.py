@@ -22,18 +22,37 @@ def cos_dist_output_shape(shapes):
     return (shape1[0],1)
 
 def load_training_data():
-    trs = np.load('../preproc/train_tr.npy')
-    gt = np.load('../preproc/labels.npy')
+    trs = np.load('../preproc/train.npy')
+    gt = np.load('../preproc/labels2.npy')
     gt = gt[:len(trs)]
     assert(len(gt) == len(trs))
     return trs, gt
 
-def get_mse(predictions, actuals):
-	total = 0.0
-	for i in range(len(predictions)):
-		total += (predictions[i] - actuals[i])**2
-    mse = total / len(predictions)
-	return mse
+def get_summary(actuals, predictions):
+    total_mse, acc, tp, tn, fp, fn = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+    for i in range(0, len(predictions)):
+        total_mse += (predictions[i] - actuals[i])**2
+        if(actuals[i] == 1 and predictions[i] > 0.5):
+            tp += 1
+        elif(actuals[i] == 0 and predictions[i] <= 0.5):
+            tn += 1
+        elif(actuals[i] == 1 and predictions[i] <= 0.5):
+            fn += 1
+        elif(actuals[i] == 0 and predictions[i] > 0.5):
+            fp += 1
+    acc = (tp + tn) / len(predictions)
+    assert(tp + tn + fn + fp == len(predictions))
+    mse = total_mse / len(predictions)
+    return mse, acc, tp, tn, fp, fn
+
+def get_acc(predictions, actuals):
+    correct = 0
+    acc = 0.0
+    for i in range (0, len(predictions)):
+        if(-0.5 < predictions[i] - actuals[i] < 0.5):
+            correct += 1
+    acc = correct/len(predictions)
+    return acc
 
 #using TensorFlow backend
 def create_LSTM(input):
@@ -65,27 +84,28 @@ def main():
     # The word embeddings should now be usable as training data
     q1_word_embeddings = pad_sequences(q1, maxlen=maxlen, dtype='float32',padding='pre', truncating='pre', value=0.)
     q2_word_embeddings = pad_sequences(q2, maxlen=maxlen, dtype='float32',padding='pre', truncating='pre', value=0.)
-    # #create base LSTM models
-    # input_q1 = Input(shape=(maxlen,300),dtype='float32',name='q1')
-    # input_q2 = Input(shape=(maxlen,300),dtype='float32',name='q2')
-    # siamese_LSTM = create_LSTM((maxlen,300))
-    #
-    # question_1 = siamese_LSTM(input_q1)
-    # question_2 = siamese_LSTM(input_q2)
-    # distance = Lambda(cosine_distance, output_shape=cos_dist_output_shape)([question_1, question_2])
-    #
-    # model = Model(input=[input_q1, input_q2], output=distance)
-    # #compile with mean squared error and use RMSprop (generally good for recurrent networks)
-    # model.compile(loss='mean_squared_error', optimizer='RMSprop')
-    #
-    # #again the formatting of the data will be important here, and parameters will change, but I'm just looking for something simple to do parameter testing with
-    # #model.fit([q1_word_embeddings, q2_word_embeddings], gt)
-    # model.fit([q1_word_embeddings, q2_word_embeddings], gt, validation_split=.20,
-    #           batch_size=100, verbose=2, nb_epoch=3)
-    # model.save('quora_regressor.h5')
-    model2 = load_model('quora_regressor.h5')
+
+    #create base LSTM models
+    input_q1 = Input(shape=(maxlen,300),dtype='float32',name='q1')
+    input_q2 = Input(shape=(maxlen,300),dtype='float32',name='q2')
+    siamese_LSTM = create_LSTM((maxlen,300))
+
+    question_1 = siamese_LSTM(input_q1)
+    question_2 = siamese_LSTM(input_q2)
+    distance = Lambda(cosine_distance, output_shape=cos_dist_output_shape)([question_1, question_2])
+
+    model = Model(input=[input_q1, input_q2], output=distance)
+    #compile with mean squared error and use RMSprop (generally good for recurrent networks)
+    model.compile(loss='mean_squared_error', optimizer='RMSprop')
+
+    #again the formatting of the data will be important here, and parameters will change, but I'm just looking for something simple to do parameter testing with
+    #model.fit([q1_word_embeddings, q2_word_embeddings], gt)
+    model.fit([q1_word_embeddings, q2_word_embeddings], gt, validation_split=.20,
+              batch_size=100, verbose=2, nb_epoch=3)
+    model.save('quora_regressor_full.h5')
+    #model2 = load_model('quora_regressor.h5')
     # compute final accuracy on training and test sets
-    preds = model2.predict([q1_word_embeddings, q2_word_embeddings], batch_size=1, verbose=1)
-    mse = get_mse(gt, preds)
+    #preds = model2.predict([q1_word_embeddings, q2_word_embeddings], batch_size=1, verbose=1)
+    #mse, acc, tp, tn, fp, fn = get_summary(gt, preds)
 
 main()
