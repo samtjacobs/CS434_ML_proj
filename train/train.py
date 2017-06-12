@@ -5,7 +5,7 @@ import h5py as h5py
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 from keras.utils.np_utils import to_categorical
-from keras.layers import Dense, Dropout, Input, Lambda, TimeDistributed, LSTM, BatchNormalization, concatenate, Conv1D
+from keras.layers import Dense, Dropout, Input, Lambda, TimeDistributed, LSTM, BatchNormalization, concatenate, Reshape, Flatten, merge
 from keras.optimizers import Adam
 from keras.layers import Embedding
 from keras import backend as K
@@ -94,11 +94,6 @@ def main():
 
     #labels = to_categorical(np.asarray(gt, dtype=int))
     labels = np.asarray(gt, dtype='float32')
- #  indices = np.arange(q1_data.shape[0])
- #   np.random.shuffle(indices)
- #   q1_data = q1_data[indices]
- #   q2_data = q2_data[indices]
- #   labels = labels[indices]
     nb_validation_samples = int(VALIDATION_SPLIT * q1_data.shape[0])
 
     # Seperate testing and validation sets
@@ -117,14 +112,28 @@ def main():
     q2 = Input(shape=(MAX_SEQUENCE_LENGTH, ))
     # Might add mask
     # TimeDistributed is 2D LSTM from my understanding
-    shared = make_shared_leg(MAX_SEQUENCE_LENGTH, word_ind, embed_w)
-   # print(type(shared))
-    q1_path = shared(q1)
-    q2_path = shared(q2)
+    q1_path = make_embed_layer(word_ind, embed_w)(q1)
+    q1_path = LSTM(EMBEDDING_DIM, activation='relu', dropout=0.2, recurrent_dropout=0.2, return_sequences=True)(q1_path)
+    q1_path = Dense(EMBEDDING_DIM, activation='relu')(q1_path)
+    q1_path = Dropout(DROPOUT)(q1_path)
+    q1_path = BatchNormalization()(q1_path)
 
-    merged = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([q1_path, q2_path])
+    q2_path = make_embed_layer(word_ind, embed_w)(q2)
+    q2_path = LSTM(EMBEDDING_DIM, activation='relu', dropout=0.2, recurrent_dropout=0.2, return_sequences=True)(q2_path)
+    q2_path = Dense(EMBEDDING_DIM, activation='relu')(q2_path)
+    q2_path = Dropout(DROPOUT)(q2_path)
+    q2_path = BatchNormalization()(q2_path)
+
+    q1_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q1_path)
+    q2_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q2_path)
+    #merged = concatenate([q1_path, q2_path])
     # Pass thru single path
-    merged = Dense(200, activation='relu')(merged)
+    #merged = Reshape((256, ))(merged)
+    #merged = Flatten()(merged)
+    merged = merge([q1_path, q2_path], mode='concat')
+    #merged = Flatten()(merged)
+    merged = Reshape((2, EMBEDDING_DIM))
+    merged = Dense(200, init='normal', activation='relu')(merged)
     merged = Dropout(DROPOUT)(merged)
     merged = BatchNormalization()(merged)
     merged = Dense(100, activation='relu')(merged)
@@ -135,7 +144,7 @@ def main():
 
     model = Model(inputs=[q1, q2], output=pred)
     TIME = str(time.localtime().tm_hour) + str(time.localtime().tm_min)
-    model.compile(loss='mse', optimizer='adam', metrics=['acc'])
+    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['acc'])
     checkpoint = [ModelCheckpoint(MNAME + '_' + TIME + '_weights.h5', monitor='val_acc', save_best_only=True, verbose=2)]
     history = model.fit([q1_train, q2_train], l_train,
               validation_data=([q1_val, q2_val], l_val),
