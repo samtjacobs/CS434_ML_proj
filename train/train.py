@@ -5,11 +5,11 @@ import h5py as h5py
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 from keras.utils.np_utils import to_categorical
-from keras.layers import Dense, Dropout, Input, Lambda, TimeDistributed, BatchNormalization, concatenate
+from keras.layers import Dense, Dropout, Input, Lambda, TimeDistributed, LSTM, BatchNormalization, concatenate
 from keras.optimizers import Adam
 from keras.layers import Embedding
 from keras import backend as K
-from keras.models import Model
+from keras.models import Model, Sequential
 import csv
 import cPickle as pickle
 import time
@@ -63,6 +63,15 @@ def make_embed_layer(word_ind, embed_w):
                     input_length=MAX_SEQUENCE_LENGTH,
                     trainable=False)
 
+def make_shared_layer(embed):
+    model = Sequential()
+    model.add(embed)
+    model.add(LSTM(EMBEDDING_DIM, activation='relu'))
+    model.add(Dense(EMBEDDING_DIM, activation='relu'))
+    model.add(Dropout(DROPOUT))
+    model.add(BatchNormalization())
+    return model
+
 
 def main():
     word_ind = pickle.load(open(PREPROC_PATH + 'word_ind.p'))
@@ -100,21 +109,20 @@ def main():
     embed1 = make_embed_layer(word_ind, embed_w)
     embed2 = make_embed_layer(word_ind, embed_w)
     # Might add mask
-    q1_path = embed1(q1)
-    q2_path = embed2(q2)
     # TimeDistributed is 2D LSTM from my understanding
-    q1_path = TimeDistributed(Dense(EMBEDDING_DIM, activation='relu'))(q1_path)
-    q2_path = TimeDistributed(Dense(EMBEDDING_DIM, activation='relu'))(q2_path)
+    shared = make_shared_layer(make_embed_layer(word_ind, embed_w))
+    q1_path = shared(q1)
+    q2_path = shared(q2)
     # MaxPooling Layer.  May add additional dense nueral net before it
-    q1_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q1_path)
-    q2_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q2_path)
+    #q1_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q1_path)
+    #q2_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q2_path)
     # Merge w/ concatenation
     merged = concatenate([q1_path, q2_path])
     # Pass thru single path
     merged = Dense(200, activation='relu')(merged)
     merged = Dropout(DROPOUT)(merged)
     merged = BatchNormalization()(merged)
-    merged = Dense(200, activation='relu')(merged)
+    merged = Dense(100, activation='relu')(merged)
     merged = Dropout(DROPOUT)(merged)
     merged = BatchNormalization()(merged)
     # Final
@@ -122,7 +130,7 @@ def main():
 
     model = Model(inputs=[q1, q2], output=pred)
     TIME = str(time.localtime().tm_hour) + str(time.localtime().tm_min)
-    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['acc'])
+    model.compile(loss='mean_squared_error', optimizer='adam', metrics=['acc'])
     checkpoint = [ModelCheckpoint(MNAME + '_' + TIME + '_weights.h5', monitor='val_acc', save_best_only=True, verbose=2)]
     history = model.fit([q1_train, q2_train], l_train,
               validation_data=([q1_val, q2_val], l_val),
@@ -133,7 +141,7 @@ def main():
     model.load_weights(MNAME + '_' + TIME +'_weights.h5')
     predictions = model.predict([q1_data, q2_data], batch_size=100, verbose=0)
     np.save(open(TIME + '_' + "predictions.np", "wb"), predictions)
-    model.save(MNAME + '_''.h5')
+    model.save(MNAME + '_' + TIME + '.h5')
 
 if __name__ == "__main__":
     main()
