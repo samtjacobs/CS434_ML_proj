@@ -22,9 +22,14 @@ MAX_NB_WORDS = 200000
 PREPROC_PATH = '../preproc/'
 EMBEDDING_DIM = 300
 HIDDEN_DIM = 100
-DROPOUT = 0.2
 MAX_SEQUENCE_LENGTH = 64
 VALIDATION_SPLIT = 0.90
+
+#parameter tests
+DROPOUT = np.array([0.2, 0.5])
+DENSE_SIZE = np.array([100, 200])
+LOSS_FUNC = np.array(['mean_squared_error', 'binary_crossentropy'])
+ACTIVATION_FUNC = np.array(['sigmoid, relu, tanh, linear'])
 
 def get_q_strings(data_path):
     question1 = []
@@ -102,37 +107,43 @@ def main():
     # Might add mask
     q1_path = embed1(q1)
     q2_path = embed2(q2)
-    # TimeDistributed is 2D LSTM from my understanding
-    q1_path = TimeDistributed(Dense(EMBEDDING_DIM, activation='relu'))(q1_path)
-    q2_path = TimeDistributed(Dense(EMBEDDING_DIM, activation='relu'))(q2_path)
-    # MaxPooling Layer.  May add additional dense nueral net before it
-    q1_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q1_path)
-    q2_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q2_path)
-    # Merge w/ concatenation
-    merged = concatenate([q1_path, q2_path])
-    # Pass thru single path
-    merged = Dense(200, activation='relu')(merged)
-    merged = Dropout(DROPOUT)(merged)
-    merged = BatchNormalization()(merged)
-    merged = Dense(200, activation='relu')(merged)
-    merged = Dropout(DROPOUT)(merged)
-    merged = BatchNormalization()(merged)
-    # Final
-    pred = Dense(1, activation='sigmoid')(merged)
 
-    model = Model(inputs=[q1, q2], output=pred)
-    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['val_acc'])
 
-    history = model.fit([q1_train, q2_train], l_train,
-              validation_data=([q1_val, q2_val], l_val),
-              epochs=15, batch_size=128, verbose=2)
+    for dro in DROPOUT:
+        for den in DENSE_SIZE:
+            for los in LOSS_FUNC:
+                for act in ACTIVATION_FUNC:
+                # TimeDistributed is 2D LSTM from my understanding
+                q1_path = TimeDistributed(Dense(EMBEDDING_DIM, activation=act))(q1_path)
+                q2_path = TimeDistributed(Dense(EMBEDDING_DIM, activation=act))(q2_path)
+                # MaxPooling Layer.  May add additional dense nueral net before it
+                q1_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q1_path)
+                q2_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q2_path)
+                # Merge w/ concatenation
+                merged = concatenate([q1_path, q2_path])
+                # Pass thru single path
+                merged = Dense(200, activation='relu')(merged)
+                merged = Dropout(DROPOUT)(merged)
+                merged = BatchNormalization()(merged)
+                merged = Dense(200, activation='relu')(merged)
+                merged = Dropout(DROPOUT)(merged)
+                merged = BatchNormalization()(merged)
+                # Final
+                pred = Dense(1, activation='sigmoid')(merged)
 
-    max_val_acc, idx = max((val, idx) for (idx, val) in enumerate(history.history['val_acc']))
-    print('Maximum validation accuracy = {0:.4f} (epoch {1:d})'.format(max_val_acc, idx+1))
+                model = Model(inputs=[q1, q2], output=pred)
+                model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['val_acc'])
 
-    predictions = model.predict([q1_data, q2_data], batch_size=100, verbose=1)
-    np.save(open('predictions.npy'), predictions)
-    model.save('quora_mod.h5')
+                history = model.fit([q1_train, q2_train], l_train,
+                          validation_data=([q1_val, q2_val], l_val),
+                          epochs=15, batch_size=128, verbose=2)
+
+                max_val_acc, idx = max((val, idx) for (idx, val) in enumerate(history.history['val_acc']))
+                print('Maximum validation accuracy = {0:.4f} (epoch {1:d})'.format(max_val_acc, idx+1))
+
+                predictions = model.predict([q1_data, q2_data], batch_size=100, verbose=1)
+                np.save(open('../predictions_td_' + str(dro) + '_' + str(den) + '_' + str(los) + '_' + str(act) +'.npy'), predictions)
+                model.save('quora_param_test' + str(dro) + '_' + str(den) + '_' + str(los) + '_' + str(act) + '.h5')
 
 if __name__ == "__main__":
     main()
