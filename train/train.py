@@ -5,7 +5,7 @@ import h5py as h5py
 from keras.preprocessing.sequence import pad_sequences
 from keras.preprocessing.text import Tokenizer
 from keras.utils.np_utils import to_categorical
-from keras.layers import Dense, Dropout, Input, Lambda, TimeDistributed, LSTM, BatchNormalization, concatenate
+from keras.layers import Dense, Dropout, Input, Lambda, TimeDistributed, LSTM, BatchNormalization, concatenate, Conv1D
 from keras.optimizers import Adam
 from keras.layers import Embedding
 from keras import backend as K
@@ -25,6 +25,15 @@ DROPOUT = 0.2
 MAX_SEQUENCE_LENGTH = 64
 VALIDATION_SPLIT = 0.90
 MNAME = 'quora_mod'
+
+def euclidean_distance(vects):
+    x, y = vects
+    return K.sqrt(K.sum(K.square(x - y), axis=1, keepdims=True))
+
+def eucl_dist_output_shape(shapes):
+    shape1, shape2 = shapes
+    return (shape1[0], 1)
+
 
 def get_q_strings(data_path):
     question1 = []
@@ -63,15 +72,15 @@ def make_embed_layer(word_ind, embed_w):
                     input_length=MAX_SEQUENCE_LENGTH,
                     trainable=False)
 
-def make_shared_layer(embed):
-    model = Sequential()
-    model.add(embed)
-    model.add(LSTM(EMBEDDING_DIM, activation='relu'))
-    model.add(Dense(EMBEDDING_DIM, activation='relu'))
-    model.add(Dropout(DROPOUT))
-    model.add(BatchNormalization())
-    return model
-
+def make_shared_leg(input_dim, word_ind, embed_w):
+    inp = Input(shape=(input_dim, ))
+    leg = make_embed_layer(word_ind, embed_w)(inp)
+    leg = LSTM(EMBEDDING_DIM, activation='relu', dropout=0.2, recurrent_dropout=0.2)(leg)
+    leg = Dense(EMBEDDING_DIM, activation='relu')(leg)
+    leg = Dropout(DROPOUT)(leg)
+    leg = BatchNormalization()(leg)
+    #leg = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(leg)
+    return Model(input=inp, output=leg)
 
 def main():
     word_ind = pickle.load(open(PREPROC_PATH + 'word_ind.p'))
@@ -106,18 +115,14 @@ def main():
     embed_w = get_embed_weights(word_ind, embedding_ind)
     q1 = Input(shape=(MAX_SEQUENCE_LENGTH, ))
     q2 = Input(shape=(MAX_SEQUENCE_LENGTH, ))
-    embed1 = make_embed_layer(word_ind, embed_w)
-    embed2 = make_embed_layer(word_ind, embed_w)
     # Might add mask
     # TimeDistributed is 2D LSTM from my understanding
-    shared = make_shared_layer(make_embed_layer(word_ind, embed_w))
+    shared = make_shared_leg(MAX_SEQUENCE_LENGTH, word_ind, embed_w)
+   # print(type(shared))
     q1_path = shared(q1)
     q2_path = shared(q2)
-    # MaxPooling Layer.  May add additional dense nueral net before it
-    #q1_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q1_path)
-    #q2_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q2_path)
-    # Merge w/ concatenation
-    merged = concatenate([q1_path, q2_path])
+
+    merged = Lambda(euclidean_distance, output_shape=eucl_dist_output_shape)([q1_path, q2_path])
     # Pass thru single path
     merged = Dense(200, activation='relu')(merged)
     merged = Dropout(DROPOUT)(merged)
@@ -130,11 +135,11 @@ def main():
 
     model = Model(inputs=[q1, q2], output=pred)
     TIME = str(time.localtime().tm_hour) + str(time.localtime().tm_min)
-    model.compile(loss='mean_squared_error', optimizer='adam', metrics=['acc'])
+    model.compile(loss='mse', optimizer='adam', metrics=['acc'])
     checkpoint = [ModelCheckpoint(MNAME + '_' + TIME + '_weights.h5', monitor='val_acc', save_best_only=True, verbose=2)]
     history = model.fit([q1_train, q2_train], l_train,
               validation_data=([q1_val, q2_val], l_val),
-              epochs=15, batch_size=128, verbose=2, callbacks=checkpoint)
+              epochs=10, batch_size=128, verbose=2, callbacks=checkpoint)
 
     max_val_acc, idx = max((val, idx) for (idx, val) in enumerate(history.history['val_acc']))
     print('Maximum validation accuracy = {0:.4f} (epoch {1:d})'.format(max_val_acc, idx+1))
