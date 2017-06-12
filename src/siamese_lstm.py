@@ -70,10 +70,10 @@ def make_embed_layer(word_ind, embed_w):
 
 
 def main():
-    word_ind = pickle.load(open(PREPROC_PATH + 'word_ind.p'))
+    word_ind = pickle.load(open(PREPROC_PATH + 'param_word_ind.p'))
     embedding_ind = pickle.load(open(PREPROC_PATH + '6B_word_vec.p'))
-    q_seqs = pickle.load(open(PREPROC_PATH + 'que_seqs.p'))
-    gt = pickle.load(open(PREPROC_PATH + 'labels.p'))
+    q_seqs = pickle.load(open(PREPROC_PATH + 'param_que_seqs.p'))
+    gt = pickle.load(open(PREPROC_PATH + 'param_labels.p'))
     q1_seq = q_seqs[0]
     q2_seq = q_seqs[1]
     q1_data = pad_sequences(q1_seq, maxlen=MAX_SEQUENCE_LENGTH)
@@ -108,42 +108,43 @@ def main():
     q1_path = embed1(q1)
     q2_path = embed2(q2)
 
+    # TimeDistributed is 2D LSTM from my understanding
 
     for dro in DROPOUT:
         for den in DENSE_SIZE:
             for los in LOSS_FUNC:
                 for act in ACTIVATION_FUNC:
-                # TimeDistributed is 2D LSTM from my understanding
-                q1_path = TimeDistributed(Dense(EMBEDDING_DIM, activation=act))(q1_path)
-                q2_path = TimeDistributed(Dense(EMBEDDING_DIM, activation=act))(q2_path)
-                # MaxPooling Layer.  May add additional dense nueral net before it
-                q1_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q1_path)
-                q2_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q2_path)
-                # Merge w/ concatenation
-                merged = concatenate([q1_path, q2_path])
-                # Pass thru single path
-                merged = Dense(200, activation='relu')(merged)
-                merged = Dropout(DROPOUT)(merged)
-                merged = BatchNormalization()(merged)
-                merged = Dense(200, activation='relu')(merged)
-                merged = Dropout(DROPOUT)(merged)
-                merged = BatchNormalization()(merged)
-                # Final
-                pred = Dense(1, activation='sigmoid')(merged)
+                    q1_path = TimeDistributed(Dense(EMBEDDING_DIM, activation=act))(q1_path)
+                    q2_path = TimeDistributed(Dense(EMBEDDING_DIM, activation=act))(q2_path)
+                    # MaxPooling Layer.  May add additional dense nueral net before it
+                    q1_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q1_path)
+                    q2_path = Lambda(lambda x: K.max(x, axis=1), output_shape=(EMBEDDING_DIM,))(q2_path)
+                    # Merge w/ concatenation
+                    merged = concatenate([q1_path, q2_path])
+                    # Pass thru single path
+                    merged = Dense(200, activation='relu')(merged)
+                    merged = Dropout(DROPOUT)(merged)
+                    merged = BatchNormalization()(merged)
+                    merged = Dense(200, activation='relu')(merged)
+                    merged = Dropout(DROPOUT)(merged)
+                    merged = BatchNormalization()(merged)
+                    # Final
+                    pred = Dense(1, activation='sigmoid')(merged)
 
-                model = Model(inputs=[q1, q2], output=pred)
-                model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['val_acc'])
+                    model = Model(inputs=[q1, q2], output=pred)
+                    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['val_acc'])
 
-                history = model.fit([q1_train, q2_train], l_train,
-                          validation_data=([q1_val, q2_val], l_val),
-                          epochs=15, batch_size=128, verbose=2)
+                    history = model.fit([q1_train, q2_train], l_train,
+                              validation_data=([q1_val, q2_val], l_val),
+                              epochs=15, batch_size=128, verbose=2)
 
-                max_val_acc, idx = max((val, idx) for (idx, val) in enumerate(history.history['val_acc']))
-                print('Maximum validation accuracy = {0:.4f} (epoch {1:d})'.format(max_val_acc, idx+1))
+                    max_val_acc, idx = max((val, idx) for (idx, val) in enumerate(history.history['val_acc']))
+                    print('Maximum validation accuracy = {0:.4f} (epoch {1:d})'.format(max_val_acc, idx+1))
 
-                predictions = model.predict([q1_data, q2_data], batch_size=100, verbose=1)
-                np.save(open('../predictions_td_' + str(dro) + '_' + str(den) + '_' + str(los) + '_' + str(act) +'.npy'), predictions)
-                model.save('quora_param_test' + str(dro) + '_' + str(den) + '_' + str(los) + '_' + str(act) + '.h5')
+                    predictions = model.predict([q1_data, q2_data], batch_size=100, verbose=1)
+                    np.save(open('../predictions_td_' + str(dro) + '_' + str(den) + '_' + str(los) + '_' + str(act) +'.npy'), predictions)
+                    model.save('quora_param_test' + str(dro) + '_' + str(den) + '_' + str(los) + '_' + str(act) + '.h5')
+    print("finished")
 
 if __name__ == "__main__":
     main()

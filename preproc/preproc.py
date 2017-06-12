@@ -42,12 +42,12 @@ def main():
     data_path = sys.argv[1]
     q1, q2, gt = get_q_strings(data_path)
     tokens = make_tokens(q1, q2)
-    pickle.dump(tokens.word_index, open("word_ind.p", "wb"))
-    pickle.dump(gt, open("labels.p", "wb"))
+    pickle.dump(tokens.word_index, open("param_word_ind.p", "wb"))
+    pickle.dump(gt, open("param_labels.p", "wb"))
     embed_dic = get_embeddings(sys.argv[2])
-    pickle.dump(embed_dic, open(sys.argv[2].split('.')[1] + "_word_vec.p", "wb"))
+    pickle.dump(embed_dic, open(sys.argv[2].split('.')[1] + "_param_word_vec.p", "wb"))
     seqs = [tokens.texts_to_sequences(q1), tokens.texts_to_sequences(q2)]
-    pickle.dump(seqs, open("que_seqs.p", "wb"))
+    pickle.dump(seqs, open("param_que_seqs.p", "wb"))
 
 
 if __name__ == "__main__":
