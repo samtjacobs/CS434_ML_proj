@@ -71,7 +71,7 @@ def make_embed_layer(word_ind, embed_w):
 
 def main():
     word_ind = pickle.load(open(PREPROC_PATH + 'param_word_ind.p'))
-    embedding_ind = pickle.load(open(PREPROC_PATH + '6B_word_vec.p'))
+    embedding_ind = pickle.load(open(PREPROC_PATH + '6B_param_word_vec.p'))
     q_seqs = pickle.load(open(PREPROC_PATH + 'param_que_seqs.p'))
     gt = pickle.load(open(PREPROC_PATH + 'param_labels.p'))
     q1_seq = q_seqs[0]
@@ -122,17 +122,17 @@ def main():
                     # Merge w/ concatenation
                     merged = concatenate([q1_path, q2_path])
                     # Pass thru single path
-                    merged = Dense(200, activation='relu')(merged)
-                    merged = Dropout(DROPOUT)(merged)
+                    merged = Dense(den, activation=act)(merged)
+                    merged = Dropout(dro)(merged)
                     merged = BatchNormalization()(merged)
-                    merged = Dense(200, activation='relu')(merged)
+                    merged = Dense(den, activation=act)(merged)
                     merged = Dropout(DROPOUT)(merged)
                     merged = BatchNormalization()(merged)
                     # Final
                     pred = Dense(1, activation='sigmoid')(merged)
 
                     model = Model(inputs=[q1, q2], output=pred)
-                    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['val_acc'])
+                    model.compile(loss=los, optimizer='adam', metrics=['val_acc'])
 
                     history = model.fit([q1_train, q2_train], l_train,
                               validation_data=([q1_val, q2_val], l_val),
