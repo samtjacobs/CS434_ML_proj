@@ -6,6 +6,7 @@
       <sourceFolder url="file://$MODULE_DIR$/preproc" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/train" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/test" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/eval" isTestSource="false" />
     </content>
     <orderEntry type="jdk" jdkName="Remote Python 2.7.5 (ssh://jacobssa@vm-cs434-1.engr.oregonstate.edu:22/bin/python)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
