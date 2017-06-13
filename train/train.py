@@ -23,7 +23,7 @@ EMBEDDING_DIM = 300
 HIDDEN_DIM = 100
 DROPOUT = 0.2
 MAX_SEQUENCE_LENGTH = 64
-VALIDATION_SPLIT = 0.90
+VALIDATION_SPLIT = 0.15
 MNAME = 'quora_mod'
 
 def get_q_strings(data_path):
@@ -126,14 +126,14 @@ def main():
     checkpoint = [ModelCheckpoint(MNAME + '_' + TIME + '_weights.h5', monitor='val_acc', save_best_only=True, verbose=2)]
     history = model.fit([q1_train, q2_train], l_train,
               validation_data=([q1_val, q2_val], l_val),
-              epochs=15, batch_size=128, verbose=2, callbacks=checkpoint)
+              epochs=10, batch_size=128, verbose=2, callbacks=checkpoint)
 
     max_val_acc, idx = max((val, idx) for (idx, val) in enumerate(history.history['val_acc']))
     print('Maximum validation accuracy = {0:.4f} (epoch {1:d})'.format(max_val_acc, idx+1))
     model.load_weights(MNAME + '_' + TIME +'_weights.h5')
     predictions = model.predict([q1_data, q2_data], batch_size=100, verbose=0)
     np.save(open(TIME + '_' + "predictions.np", "wb"), predictions)
-    model.save(MNAME + '_''.h5')
+    model.save(MNAME + '_' + TIME + '.h5')
 
 if __name__ == "__main__":
     main()
